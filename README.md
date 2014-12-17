@@ -1,13 +1,19 @@
-Hybrid configuration library
-============================
+NOT PRODUCTION.  USE AT YOUR OWN RISK (and submit pull requests)
+=====================================
 
-Combine standard go flags with ini files.
+Config File / Flags Library
+===========================
+
+A slimmed down fork of https://github.com/vharitonsky/iniflags that returns
+errors instead of printing to stderr and terminating your program.
+
+Combines standard go flags with good old-fashioned config files.
 
 Usage:
 
 ```bash
 
-go get -u -a github.com/vharitonsky/iniflags
+go get -u -a github.com/kd5pbo/confflags
 ```
 
 main.go
@@ -15,102 +21,75 @@ main.go
 package main
 
 import (
-	"flag"
-	...
-	"github.com/vharitonsky/iniflags"
-	...
+        "flag"
+        ...
+        "github.com/kd5pbo/confflags"
+        ...
 )
 
 var (
-	flag1 = flag.String("flag1", "default1", "Description1")
-	...
-	flagN = flag.Int("flagN", 123, "DescriptionN")
+        flag1 = flag.String("flag1", "default1", "Description1")
+        ...
+        flagN = flag.Int("flagN", 123, "DescriptionN")
 )
 
 func main() {
-	iniflags.Parse()  // use instead of flag.Parse()
+        confflags.Parse()  // use instead of flag.Parse()
 }
 ```
 
-dev.ini
+mydaemon.conf
 
 ```ini
-    # comment1
-    flag1 = "val1"  # comment2
-
-    ...
-    [section]
-    flagN = 4  # comment3
+        # comment1
+        flag1 val1
+        
+        ...
+        
+        flagN 4
 ```
 
 ```bash
 
-go run main.go -config dev.ini -flagX=foobar
+go run main.go -config mydaemon.conf -flag3=foobar
 
 ```
 
-Now all unset flags obtain their value from .ini file provided in -config path.
-If value is not found in the .ini, flag will retain its' default value.
+Now all unset flags obtain their value from the file given with -config.
+If the value is not found in the the config file, the flag will retain its
+default value.
 
 Flag value priority:
   - value set via command-line
-  - value from ini file
+  - value from config file
   - default value
 
-Iniflags is compatible with real .ini config files with [sections] and #comments.
-Sections and comments are skipped during config file parsing.
+Blank lines and lines starting with `#` are ignored.  All other lines must have
+at least two parts, a key and a value separated by white space.
 
-Iniflags can #import another ini files. For example,
-
-base.ini
-```ini
-flag1 = value1
-flag2 = value2
-```
-
-dev.ini
-```ini
-#import "base.ini"
-# Now flag1="value1", flag2="value2"
-
-flag2 = foobar
-# Now flag1="value1", while flag2="foobar"
-```
-
-Both -config path and imported ini files can be addressed via http
-or https links:
+All defined flags can be printed to stdout by passing -dumpflags on the
+command line or specifying `dumpflags true` in the config file.  `Parse()`
+will return `confflags.DumpedFlags` if so.  The following creates a config
+file from the flags on the command line:
 
 ```bash
-/path/to/app -config=https://google.com/path/to/config.ini
-```
-
-config.ini
-```ini
-# The following line will import configs from the given http link.
-#import "http://google.com/path/to/config.ini"
-```
-
-All flags defined in the app can be dumped into stdout with ini-compatible sytax
-by passing -dumpflags flag to the app. The following command creates ini-file 
-with all the flags defined in the app:
-
-```bash
-/path/to/the/app -dumpflags > initial-config.ini
+/path/to/the/program -flag1=val1 -flag3=foobar -flagN=4 -dumpflags > program.conf
 ```
 
 
-Iniflags also supports two types of online config reload:
+Confflags also supports reloading the config file during runtime in two ways:
 
   * Via SIGHUP signal:
 
 ```bash
-kill -s SIGHUP <app_pid>
+kill -s SIGHUP <program_pid>
 ```
 
-  * Via -configUpdateInterval flag. The following line will re-read config every 5 seconds:
+  * Via the -configUpdateInterval flag. The following line will re-read config
+every 3 minutes:
 
 ```bash
-/path/to/app -config=/path/to/config.ini -configUpdateInterval=5s
+/path/to/the/program -config=/path/to/program.conf -configUpdateInterval=3m
 ```
 
 
@@ -120,22 +99,22 @@ Advanced usage.
 package main
 
 import (
-	"flag"
-	"iniflags"
-	"log"
+        "flag"
+        "github.com/kd5pbo/confflags"
+        "log"
 )
 
-var listenPort = flag.Int("listenPort", 1234, "Port to listen to")
-
-func init() {
-	iniflags.OnFlagChange("listenPort", func() {
-		startServerOnPort(*listenPort)
-	})
-}
+var listenPort = flag.Int("listenPort", 1234, "Port on which to listen.")
+var s *server
 
 func main() {
-	// iniflags.Parse() starts the server on the -listenPort via OnFlagChange()
-	// callback registered above.
-	iniflags.Parse()
+        iniflags.OnFlagChange("listenPort", func() {
+                n := startServerOnPort(*listenPort)
+                s.Stop()
+                s = n
+        })
+        /* confflags.Parse() starts the server on the -listenPort via the
+        OnFlagChange() callback registered above. */
+        iniflags.Parse()
 }
 ```
