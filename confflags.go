@@ -16,8 +16,6 @@ import (
 	"time"
 )
 
-/* Commented-out sections have been left in for historical purposes */
-
 /* Library-specific command line flags */
 var (
 	config = flag.String("config", "", "Path to ini config for using in "+
@@ -154,7 +152,6 @@ func updateConfig() UpdateResult {
 	for k, _ := range oldFlagValues {
 		modifiedFlags[k] = flag.Lookup(k).Value.String()
 	}
-	//	log.Printf("iniflags: read updated config. Modified flags are: %v\n", modifiedFlags)
 	Generation++
 	issueFlagChangeCallbacks(oldFlagValues)
 	/* Wake up a sleeping interval watcher */
@@ -231,16 +228,8 @@ func parseConfigFlags() (oldFlagValues map[string]string, err error) {
 	if configPath == "" {
 		return map[string]string{}, nil
 	}
-	//	if !strings.HasPrefix(configPath, "./") {
-	//		if configPath, ok = combinePath(os.Args[0], *config); !ok {
-	//			return nil, false
-	//		}
-	//	}
 	/* Get the keys and values from the config file */
 	parsedArgs, err := getArgsFromConfig(configPath)
-	//	if !ok {
-	//		return nil, false
-	//	}
 	if nil != err {
 		return nil, err
 	}
@@ -258,11 +247,7 @@ func parseConfigFlags() (oldFlagValues map[string]string, err error) {
 				"config file %v",
 				arg.Key, arg.LineNum, arg.FilePath)
 			break
-			//			log.Printf("iniflags: unknown flag name=[%s] found at line [%d] of file [%s]\n", arg.Key, arg.LineNum, arg.FilePath)
-			//			ok = false
-			//			continue
 		}
-
 		/* If the key in the config file wasn't specified on the
 		command line, set it in the variable returne by flag.* */
 		if _, found := missingFlags[f.Name]; found {
@@ -278,9 +263,6 @@ func parseConfigFlags() (oldFlagValues map[string]string, err error) {
 					arg.Key, arg.Value,
 					arg.LineNum, arg.FilePath, e)
 				break
-				//				log.Printf("iniflags: error when parsing flag [%s] value [%s] at line [%d] of file [%s]: [%s]\n", arg.Key, arg.Value, arg.LineNum, arg.FilePath, err)
-				//				ok = false
-				//				continue
 			}
 			/* Save the previous value in case we need to
 			roll back */
@@ -303,16 +285,6 @@ func parseConfigFlags() (oldFlagValues map[string]string, err error) {
 	return oldFlagValues, err
 }
 
-//func checkImportRecursion(configPath string) bool {
-//	for _, path := range importStack {
-//		if path == configPath {
-//			log.Printf("iniflags: import recursion found for [%s]: %v\n", configPath, importStack)
-//			return false
-//		}
-//	}
-//	return true
-//}
-
 type flagArg struct {
 	Key      string
 	Value    string
@@ -322,14 +294,7 @@ type flagArg struct {
 
 /* Extract the key/value pairs from the config file */
 func getArgsFromConfig(configPath string) ([]flagArg, error) {
-	//	if !checkImportRecursion(configPath) {
-	//		return nil, false
-	//	}
-	//	importStack = append(importStack, configPath)
-	//	defer func() {
-	//		importStack = importStack[:len(importStack)-1]
-	//	}()
-	//
+	/* Open the config file */
 	file, err := os.Open(configPath)
 	if file == nil {
 		return nil, err
@@ -337,60 +302,30 @@ func getArgsFromConfig(configPath string) ([]flagArg, error) {
 	defer file.Close()
 	r := bufio.NewScanner(file)
 
+	/* Read lines from the config file */
 	args := []flagArg{}
 	lineNum := 0
 	for r.Scan() {
+		/* Note where we are in config file */
 		lineNum++
 		line := r.Text()
-		/* TODO: Start here */
-		//		if err != nil && line == "" {
-		//			if err == io.EOF {
-		//				break
-		//			}
-		//			log.Printf("iniflags: error when reading file [%s] at line %d: [%s]\n", configPath, lineNum, err)
-		//			return nil, false
-		//		}
+		/* Trim trailing and leading spaces */
 		line = strings.TrimSpace(line)
-		//		if strings.HasPrefix(line, "#import ") { /* TODO: Get rid of this */
-		//			importPath, ok := unquoteValue(line[7:], lineNum, configPath)
-		//			if !ok {
-		//				return nil, false
-		//			}
-		//			if importPath, ok = combinePath(configPath, importPath); !ok {
-		//				return nil, false
-		//			}
-		//			importArgs, ok := getArgsFromConfig(importPath)
-		//			if !ok {
-		//				return nil, false
-		//			}
-		//			args = append(args, importArgs...)
-		//			continue
-		//		}
+		/* Ignore blank lines and comments */
 		if "" == line || strings.HasPrefix(line, "#") {
 			continue
 		}
-		//		parts := strings.SplitN(line, " ", 2)
+		/* Split into key and value */
 		parts := splitRE.Split(line, 2)
 		var key, value string /* Key and value from config file */
-
-		//		if len(parts) != 2 {
-		//			return nil, fmt.Errorf("unable to parse %v at line %v",
-		//				file.Name(), lineNum)
-		//			//			log.Printf("iniflags: cannot split [%s] at line %d into key and value in config file [%s]\n", line, lineNum, configPath)
-		//			//			return nil, false
-		//		}
 		key = strings.TrimSpace(parts[0])
-		//		value, ok := unquoteValue(parts[1], lineNum, configPath)
+		/* If the value isn't specified, hope it's a boolean */
 		if 1 == len(parts) {
 			value = "true"
 		} else {
 			value = parts[1]
 		}
-
-		//		value = strings.TrimSpace(parts[1])
-		//		if !ok {
-		//			return nil, false
-		//		}
+		/* Not that we have the flag */
 		args = append(args, flagArg{
 			Key:      key,
 			Value:    value,
@@ -398,60 +333,13 @@ func getArgsFromConfig(configPath string) ([]flagArg, error) {
 			LineNum:  lineNum,
 		})
 	}
+	/* Scanner error? */
 	if err := r.Err(); nil != err {
 		return nil, err
 	}
 
 	return args, nil
 }
-
-//func openConfigFile(path string) io.ReadCloser {
-//	if isHttp(path) {
-//		resp, err := http.Get(path)
-//		if err != nil {
-//			log.Printf("iniflags: cannot load config file at [%s]: [%s]\n", path, err)
-//			return nil
-//		}
-//		if resp.StatusCode != http.StatusOK {
-//			log.Printf("iniflags: unexpected http status code when obtaining config file [%s]: %d. Expected %d\n", path, resp.StatusCode, http.StatusOK)
-//			return nil
-//		}
-//		return resp.Body
-//	}
-//
-//	file, err := os.Open(path)
-//	if err != nil {
-//		log.Printf("iniflags: cannot open config file at [%s]: [%s]\n", path, err)
-//		return nil
-//	}
-//	return file
-//}
-
-//func combinePath(basePath, relPath string) (string, bool) {
-//	if isHttp(basePath) {
-//		base, err := url.Parse(basePath)
-//		if err != nil {
-//			log.Printf("iniflags: error when parsing http base path [%s]: %s\n", basePath, err)
-//			return "", false
-//		}
-//		rel, err := url.Parse(relPath)
-//		if err != nil {
-//			log.Printf("iniflags: error when parsing http rel path [%s] for base [%s]: %s\n", relPath, basePath, err)
-//			return "", false
-//		}
-//		return base.ResolveReference(rel).String(), true
-//	}
-//
-//	if relPath == "" || relPath[0] == '/' || isHttp(relPath) {
-//		return relPath, true
-//	}
-//	return path.Join(path.Dir(basePath), relPath), true
-//}
-
-/* isHttp guesse whether path is an http URL */
-//func isHttp(path string) bool {
-//	return strings.HasPrefix(strings.ToLower(path), "http://") || strings.HasPrefix(strings.ToLower(path), "https://")
-//}
 
 /* getMissingFlags returns a hash of flags which were not specified on the
 command line */
@@ -483,39 +371,3 @@ func dumpFlags() {
 		}
 	})
 }
-
-//func escapeUsage(s string) string {
-//	return strings.Replace(s, "\n", "\n    # ", -1)
-//}
-//
-//func quoteValue(v string) string {
-//	if !strings.ContainsAny(v, "\n#;") && strings.TrimSpace(v) == v {
-//		return v
-//	}
-//	v = strings.Replace(v, "\\", "\\\\", -1)
-//	v = strings.Replace(v, "\n", "\\n", -1)
-//	v = strings.Replace(v, "\"", "\\\"", -1)
-//	return fmt.Sprintf("\"%s\"", v)
-//}
-
-//func unquoteValue(v string, lineNum int, configPath string) (string, bool) {
-//	v = strings.TrimSpace(v)
-//	if v[0] != '"' {
-//		return removeTrailingComments(v), true
-//	}
-//	n := strings.LastIndex(v, "\"")
-//	if n == -1 {
-//		log.Printf("iniflags: unclosed string found [%s] at line %d in config file [%s]\n", v, lineNum, configPath)
-//		return "", false
-//	}
-//	v = v[1:n]
-//	v = strings.Replace(v, "\\\"", "\"", -1)
-//	v = strings.Replace(v, "\\n", "\n", -1)
-//	return strings.Replace(v, "\\\\", "\\", -1), true
-//}
-
-//func removeTrailingComments(v string) string {
-//	v = strings.Split(v, "#")[0]
-//	v = strings.Split(v, ";")[0]
-//	return strings.TrimSpace(v)
-//}
