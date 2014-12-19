@@ -1,3 +1,5 @@
+// Package confflags provides an easy way to read configuration information
+// from both the command line and a config file.
 package confflags
 
 import (
@@ -52,7 +54,8 @@ var (
 )
 
 // Use instead of flag.Parse().  If c is not nil, results from updating the
-// config file will be sent out on it.
+// config file either via SIGHUP or -configUpdateInterval will be sent out on
+// it.
 func Parse(c chan UpdateResult) error {
 	/* Don't double-parse */
 	if parsed {
@@ -123,8 +126,9 @@ func Parse(c chan UpdateResult) error {
 	return nil
 }
 
-/* Every time the config file is re-read, an UpdateResult struct is sent out
-via the channel passed to Parse, if the channel is non-nil. */
+// Every time the config file is re-read, an UpdateResult struct is sent out
+// via the channel passed to Parse, if the channel is non-nil.
+
 // UpdateResult contains the results of re-reading the config file.  Either
 // ChangedFlags or Err will be set, but not both.
 type UpdateResult struct {
@@ -167,10 +171,10 @@ func updateConfig() UpdateResult {
 // The callback may be registered for any flag via OnFlagChange().
 type FlagChangeCallback func()
 
-// Registers a callback which is called asynchronously (via go ...) after the
-// given flag value is changed.  Flag value can be changed on config re-read
-// after catching SIGHUP signal or if periodic config re-read is enabled with
-// -configUpdateInterval flag.
+// Registers a callback which is called asynchronously (as go callback())
+// after the given flag value is changed.  Flag value can be changed on config
+// re-read after catching SIGHUP signal or if periodic config re-read is
+// enabled with -configUpdateInterval flag.
 //
 // Note that flags set via the command line cannot be overriden via config
 // file modifications.
