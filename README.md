@@ -29,30 +29,41 @@ import (
 
 var (
         flag1 = flag.String("flag1", "default1", "Description1")
-        ...
+        flag2 = flag.Bool("flag2", false, "Description2")
+        flag3 = flag.String("flag3", "default3", "Description3")
+        flag4 = flgag.Bool("flag4", false, "Description4")
         flagN = flag.Int("flagN", 123, "DescriptionN")
 )
 
 func main() {
         confflags.Parse()  // use instead of flag.Parse()
+        fmt.Printf("1: %v\n2: %v\n3: %v\n...\n4: %v\nN: %v\n",
+                *flag1, *flag2, *flag3, *flag4, *flagN)
 }
 ```
 
 mydaemon.conf
-
 ```ini
-        # comment1
-        flag1 val1
-        
-        ...
-        
-        flagN 4
+# This is a comment line.  The next line sets flag1 to val1.
+flag1 val1
+# This line sets a boolean value to true.
+flag4
+flagN 4
 ```
 
+Invocation
 ```bash
-
 go run main.go -config mydaemon.conf -flag3=foobar
+```
 
+Output
+```
+1: val1
+2: false
+3: foobar
+4: true
+...
+N: 4
 ```
 
 Now all unset flags obtain their value from the file given with -config.
@@ -64,8 +75,9 @@ Flag value priority:
   - value from config file
   - default value
 
-Blank lines and lines starting with `#` are ignored.  All other lines must have
-at least two parts, a key and a value separated by white space.
+Blank lines and lines starting with `#` are ignored.  Lines with only one word
+(which must be the name of a flag), are treated as if " true" were also in the
+line.  This is useful for boolean flags.  
 
 All defined flags can be printed to stdout by passing -dumpflags on the
 command line or specifying `dumpflags true` in the config file.  `Parse()`
@@ -92,9 +104,7 @@ every 3 minutes:
 /path/to/the/program -config=/path/to/program.conf -configUpdateInterval=3m
 ```
 
-
-Advanced usage.
-
+This is useful for code such as
 ```go
 package main
 
@@ -109,6 +119,7 @@ var s *server
 
 func main() {
         iniflags.OnFlagChange("listenPort", func() {
+                log.Printf("Server %v", confflags.Generation)
                 n := startServerOnPort(*listenPort)
                 s.Stop()
                 s = n
@@ -118,3 +129,5 @@ func main() {
         iniflags.Parse()
 }
 ```
+If this is done, the function(s) registered with OnFlagChange will be called
+once on startup.

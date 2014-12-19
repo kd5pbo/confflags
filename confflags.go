@@ -316,7 +316,7 @@ type flagArg struct {
 	LineNum  int
 }
 
-/* TODO: Extract the key/value pairs from the config file */
+/* Extract the key/value pairs from the config file */
 func getArgsFromConfig(configPath string) ([]flagArg, error) {
 	//	if !checkImportRecursion(configPath) {
 	//		return nil, false
@@ -367,15 +367,23 @@ func getArgsFromConfig(configPath string) ([]flagArg, error) {
 		}
 		//		parts := strings.SplitN(line, " ", 2)
 		parts := splitRE.Split(line, 2)
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("unable to parse %v at line %v",
-				file.Name(), lineNum)
-			//			log.Printf("iniflags: cannot split [%s] at line %d into key and value in config file [%s]\n", line, lineNum, configPath)
-			//			return nil, false
-		}
-		key := strings.TrimSpace(parts[0])
+		var key, value string /* Key and value from config file */
+
+		//		if len(parts) != 2 {
+		//			return nil, fmt.Errorf("unable to parse %v at line %v",
+		//				file.Name(), lineNum)
+		//			//			log.Printf("iniflags: cannot split [%s] at line %d into key and value in config file [%s]\n", line, lineNum, configPath)
+		//			//			return nil, false
+		//		}
+		key = strings.TrimSpace(parts[0])
 		//		value, ok := unquoteValue(parts[1], lineNum, configPath)
-		value := strings.TrimSpace(parts[1])
+		if 1 == len(parts) {
+			value = "true"
+		} else {
+			value = parts[1]
+		}
+
+		//		value = strings.TrimSpace(parts[1])
 		//		if !ok {
 		//			return nil, false
 		//		}
