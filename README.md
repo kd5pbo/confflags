@@ -126,7 +126,15 @@ func main() {
         })
         /* confflags.Parse() starts the server on the -listenPort via the
         OnFlagChange() callback registered above. */
-        iniflags.Parse()
+        uc := make(chan confflags.UpdateResult)
+        iniflags.Parse(uc)
+        /* Watch for updates */
+        for u := range uc {
+                if nil != u.Err {
+                        log.Printf("Error updating config: %v", u.Err)
+                } else {
+                        log.Printf("Changed Flags: %V", u.ChangedFlags)
+                }
 }
 ```
 If this is done, the function(s) registered with OnFlagChange will be called
