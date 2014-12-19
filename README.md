@@ -44,9 +44,11 @@ func main() {
 
 mydaemon.conf
 ```ini
-# This is a comment line.  The next line sets flag1 to val1.
+# This is a comment line.
+# Set flag1 to val1.
 flag1 val1
 # This line sets a boolean value to true.
+# Functionally equivalent to "flag4 true"
 flag4
 flagN 4
 ```
