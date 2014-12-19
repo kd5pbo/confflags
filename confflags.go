@@ -91,7 +91,6 @@ func Parse(c chan UpdateResult) error {
 		for {
 			/* Sleep and update if there's an update interval */
 			for *configUpdateInterval != 0 {
-				// Use time.Sleep() instead of time.Tick() for the sake of dynamic flag update.
 				time.Sleep(*configUpdateInterval)
 				changes := updateConfig()
 				/* Send out the changes, if needed */
@@ -130,8 +129,10 @@ func Parse(c chan UpdateResult) error {
 // UpdateResult contains the results of re-reading the config file.  Either
 // ChangedFlags or Err will be set, but not both.
 type UpdateResult struct {
-	ChangedFlags map[string]string /* Flags that changed when the file was read */
-	Err          error             /* An error occurred reading the file */
+	ChangedFlags map[string]string /* Flags that changed when the file
+	was read */
+	Err       error             /* An error occurred reading the file */
+	OldValues map[string]string /* The previous values for the changed flags */
 }
 
 /* Re-read the config file and update the state of the flags */
@@ -233,10 +234,28 @@ func parseConfigFlags() (oldFlagValues map[string]string, err error) {
 	if nil != err {
 		return nil, err
 	}
+
 	/* Work out which flags weren't specified on the command line */
 	missingFlags := getMissingFlags()
 
+	/* Old flag values, in case we need to roll back */
 	oldFlagValues = make(map[string]string)
+	/* Sets f to v, saving the old value in oldFlagValues */
+	setIfNotEqual := func(f *flag.Flag, v string) error {
+		/* Previous value */
+		oldvalue := f.Value.String()
+		/* No change if the current value is the default */
+		if oldvalue == v {
+			return nil
+		}
+		/* Save the previous value in case we need to roll back */
+		oldFlagValues[f.Name] = oldvalue
+		/* Try to set the new value */
+		if err := f.Value.Set(v); nil != err {
+			return err
+		}
+		return nil
+	}
 	/* Put values in the config file into variables if they weren't
 	specified on the command line */
 	for _, arg := range parsedArgs {
@@ -246,34 +265,35 @@ func parseConfigFlags() (oldFlagValues map[string]string, err error) {
 			err = fmt.Errorf("unknown \"%v\" in line %v of "+
 				"config file %v",
 				arg.Key, arg.LineNum, arg.FilePath)
-			break
+			goto Cleanup
 		}
 		/* If the key in the config file wasn't specified on the
 		command line, set it in the variable returne by flag.* */
 		if _, found := missingFlags[f.Name]; found {
-			/* No change if the value from the confige file and the
-			value from the command line are the same */
-			oldValue := f.Value.String()
-			if oldValue == arg.Value {
-				continue
-			}
-			if e := f.Value.Set(arg.Value); err != nil {
+			if err = setIfNotEqual(f, arg.Value); nil != err {
 				err = fmt.Errorf("unable to set %v to %v, "+
 					"from line %v of %v: %v",
 					arg.Key, arg.Value,
-					arg.LineNum, arg.FilePath, e)
-				break
+					arg.LineNum, arg.FilePath, err)
+				goto Cleanup
 			}
-			/* Save the previous value in case we need to
-			roll back */
-			if oldValue != f.Value.String() {
-				oldFlagValues[arg.Key] = oldValue
-			}
+			/* Note that we've set the value */
+			delete(missingFlags, f.Name) /* Not needing setting */
 		}
 	}
 
+	/* Set the rest of the flags missing from the command line and the
+	config file (back) to their default values */
+	for _, f := range missingFlags {
+		if err = setIfNotEqual(f, f.DefValue); nil != err {
+			/* Should never happen */
+			err = fmt.Errorf("unable to set %v to default "+
+				"value %v: %v", f.Name, f.DefValue, err)
+		}
+	}
 	/* If we encountered an error, reset the values to what was given on
 	the command line */
+Cleanup:
 	if nil != err {
 		// restore old flag values
 		for k, v := range oldFlagValues {
@@ -285,6 +305,7 @@ func parseConfigFlags() (oldFlagValues map[string]string, err error) {
 	return oldFlagValues, err
 }
 
+/* flagArg represents a line in the config file */
 type flagArg struct {
 	Key      string
 	Value    string
@@ -342,8 +363,8 @@ func getArgsFromConfig(configPath string) ([]flagArg, error) {
 }
 
 /* getMissingFlags returns a hash of flags which were not specified on the
-command line */
-func getMissingFlags() map[string]bool {
+command line.  All values in the hash are true. */
+func getMissingFlags() map[string]*flag.Flag {
 	/* Work out which flags have been set on the command line */
 	setFlags := make(map[string]bool)
 	flag.Visit(func(f *flag.Flag) {
@@ -351,10 +372,10 @@ func getMissingFlags() map[string]bool {
 	})
 
 	/* Work out which flags haven't */
-	missingFlags := make(map[string]bool)
+	missingFlags := make(map[string]*flag.Flag)
 	flag.VisitAll(func(f *flag.Flag) {
 		if _, ok := setFlags[f.Name]; !ok {
-			missingFlags[f.Name] = true
+			missingFlags[f.Name] = f
 		}
 	})
 	return missingFlags

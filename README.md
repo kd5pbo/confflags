@@ -141,3 +141,6 @@ func main() {
 ```
 If this is done, the function(s) registered with OnFlagChange will be called
 once on startup.
+
+If a line is removed from the config file, the default value will be used
+(e.g. commenting out debugging output or something along those lines).
