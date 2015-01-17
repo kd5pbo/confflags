@@ -36,9 +36,14 @@ var (
 )
 
 func main() {
-        confflags.Parse()  // use instead of flag.Parse()
+        /* Channel on which to receive config updates */
+        updates := make(chan confflags.UpdateResult)
+        confflags.Parse(updates)  // use instead of flag.Parse()
         fmt.Printf("1: %v\n2: %v\n3: %v\n...\n4: %v\nN: %v\n",
                 *flag1, *flag2, *flag3, *flag4, *flagN)
+        for {
+                fmt.Printf("Flags Updated: %v", <-updates)
+        }
 }
 ```
 
