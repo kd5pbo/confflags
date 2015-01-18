@@ -22,7 +22,7 @@ var (
 	configUpdateInterval = flag.Duration("configUpdateInterval", 0,
 		"Update interval for re-reading config file set via -config "+
 			"flag. Zero disables config file re-reading.  "+
-			"Interval may end in s, m, or h to indicate seconds"+
+			"Interval may end in s, m, or h to indicate seconds, "+
 			"minutes, or hours respectively.")
 	dumpflags = flag.Bool("dumpflags", false, "Prints all flags and "+
 		"config options to stdout in a format useable for -config")
